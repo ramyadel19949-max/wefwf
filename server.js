@@ -10,12 +10,10 @@ app.use(express.json());
 const VPS_HOST = '51.75.118.171';
 const VPS_PORT = 20218;
 
-// مسار رئيسي لاختبار حالة الجسر
 app.get('/', (req, res) => {
     res.send('WormGPT Bridge is running on Vercel!');
 });
 
-// المسار الذي يستقبل الرسائل من الشات ويحولها للـ VPS
 app.post('/chat', (req, res) => {
     const userMessage = req.body.message || req.body.prompt || '';
 
@@ -31,14 +29,14 @@ app.post('/chat', (req, res) => {
     const options = {
         hostname: VPS_HOST,
         port: VPS_PORT,
-        path: '/api/chat', // المسار الصحيح المعتمد في الـ VPS
+        path: '/api/chat',
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Content-Length': Buffer.byteLength(payload),
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            'User-Agent': 'Mozilla/5.0'
         },
-        timeout: 25000
+        timeout: 9000 // قطع الاتصال قبل وصول Vercel للـ Timeout الخارجي
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
@@ -63,7 +61,7 @@ app.post('/chat', (req, res) => {
 
     proxyReq.on('timeout', () => {
         proxyReq.destroy();
-        res.status(504).json({ status: 'error', reply: 'انتهت مهلة الاتصال بالـ VPS.' });
+        res.status(504).json({ status: 'error', reply: 'استغرق نموذج الذكاء الاصطناعي وقتاً أطول من المعتاد في الرد. أعد المحاولة.' });
     });
 
     proxyReq.write(payload);
