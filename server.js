@@ -10,9 +10,11 @@ app.use(express.json());
 const VPS_HOST = '51.75.118.171';
 const VPS_PORT = 20218;
 
-app.get('/', (req, res) => {
-    res.send('WormGPT Bridge is running on Vercel!');
-});
+const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.64 Mobile Safari/537.36'
+];
 
 app.post('/chat', (req, res) => {
     const userMessage = req.body.message || req.body.prompt || '';
@@ -26,6 +28,8 @@ app.post('/chat', (req, res) => {
         prompt: userMessage
     });
 
+    const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+
     const options = {
         hostname: VPS_HOST,
         port: VPS_PORT,
@@ -34,9 +38,9 @@ app.post('/chat', (req, res) => {
         headers: {
             'Content-Type': 'application/json',
             'Content-Length': Buffer.byteLength(payload),
-            'User-Agent': 'Mozilla/5.0'
+            'User-Agent': randomUA
         },
-        timeout: 9000 // قطع الاتصال قبل وصول Vercel للـ Timeout الخارجي
+        timeout: 9000
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
@@ -45,10 +49,7 @@ app.post('/chat', (req, res) => {
         proxyRes.on('end', () => {
             try {
                 const data = JSON.parse(body);
-                res.json({ 
-                    status: 'success', 
-                    reply: data.reply || data.response || data.message || body 
-                });
+                res.json({ status: 'success', reply: data.reply || data.response || data.message || body });
             } catch (e) {
                 res.json({ status: 'success', reply: body });
             }
@@ -56,12 +57,12 @@ app.post('/chat', (req, res) => {
     });
 
     proxyReq.on('error', (err) => {
-        res.status(500).json({ status: 'error', reply: 'تعذر الاتصال بالـ VPS: ' + err.message });
+        res.status(500).json({ status: 'error', reply: 'خطأ اتصال بالـ VPS: ' + err.message });
     });
 
     proxyReq.on('timeout', () => {
         proxyReq.destroy();
-        res.status(504).json({ status: 'error', reply: 'استغرق نموذج الذكاء الاصطناعي وقتاً أطول من المعتاد في الرد. أعد المحاولة.' });
+        res.status(504).json({ status: 'error', reply: 'استغرق النموذج وقتاً أطول من المعتاد.' });
     });
 
     proxyReq.write(payload);
