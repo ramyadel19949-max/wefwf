@@ -10,10 +10,12 @@ app.use(express.json());
 const VPS_HOST = '51.75.118.171';
 const VPS_PORT = 20218;
 
+// مسار رئيسي لاختبار حالة الجسر
 app.get('/', (req, res) => {
     res.send('WormGPT Bridge is running on Vercel!');
 });
 
+// المسار الذي يستقبل الرسائل من الشات ويحولها للـ VPS
 app.post('/chat', (req, res) => {
     const userMessage = req.body.message || req.body.prompt || '';
 
@@ -26,16 +28,15 @@ app.post('/chat', (req, res) => {
         prompt: userMessage
     });
 
-    // إعدادات الطلب الموجه للـ VPS
     const options = {
         hostname: VPS_HOST,
         port: VPS_PORT,
-        path: '/',
+        path: '/api/chat', // المسار الصحيح المعتمد في الـ VPS
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Content-Length': Buffer.byteLength(payload),
-            'User-Agent': 'Mozilla/5.0 (Windows NT 100.0; Win64; x64)'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
         },
         timeout: 25000
     };
@@ -44,14 +45,6 @@ app.post('/chat', (req, res) => {
         let body = '';
         proxyRes.on('data', chunk => body += chunk);
         proxyRes.on('end', () => {
-            // إذا رجع السيرفر خطأ 405 أو أي خطأ HTML
-            if (proxyRes.statusCode !== 200) {
-                return res.json({ 
-                    status: 'error', 
-                    reply: `السيرفر أرجع استجابة غير متوقعة (${proxyRes.statusCode}). تأكد من مسار API في الـ VPS.` 
-                });
-            }
-
             try {
                 const data = JSON.parse(body);
                 res.json({ 
