@@ -3,12 +3,21 @@ const cors = require('cors');
 const http = require('http');
 
 const app = express();
+
+// تفعيل CORS لجميع المصادر وتجهيز قراءة الـ JSON
 app.use(cors());
 app.use(express.json());
 
+// بيانات سيرفر الـ VPS
 const VPS_HOST = '51.75.118.171';
 const VPS_PORT = 20218;
 
+// 1. مسار اختبار للسيرفر (عند فتح الرابط المباشر في المتصفح)
+app.get('/', (req, res) => {
+    res.send('WormGPT Bridge is running on Vercel!');
+});
+
+// 2. نقطة النهاية (Endpoint) الخاصة باستقبال وإرسال الرسائل
 app.post('/chat', (req, res) => {
     const userMessage = req.body.message || req.body.prompt || '';
 
@@ -33,13 +42,17 @@ app.post('/chat', (req, res) => {
         timeout: 25000
     };
 
+    // إرسال الطلب من Vercel إلى الـ VPS مباشرة
     const proxyReq = http.request(options, (proxyRes) => {
         let body = '';
         proxyRes.on('data', chunk => body += chunk);
         proxyRes.on('end', () => {
             try {
                 const data = JSON.parse(body);
-                res.json({ status: 'success', reply: data.reply || data.response || data.message || body });
+                res.json({ 
+                    status: 'success', 
+                    reply: data.reply || data.response || data.message || body 
+                });
             } catch (e) {
                 res.json({ status: 'success', reply: body });
             }
@@ -59,5 +72,5 @@ app.post('/chat', (req, res) => {
     proxyReq.end();
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// تصدير التطبيق ليعمل على Vercel بدون الحاجة لـ app.listen()
+module.exports = app;
